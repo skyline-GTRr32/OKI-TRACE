@@ -22,10 +22,14 @@
 
 When we send a prompt to a Large Language Model (LLM), we get a response. But we have no idea **how** it arrived at that response. If the output is wrong, biased, or nonsensical, we can't tell if the model misunderstood the prompt, got derailed mid-generation, or was correct until the final token. We are operating in a black box—making debugging and improvement a matter of guesswork, not engineering.
 
-**OKI TRACE** is the diagnostic tool for this problem. It is a **local-first, zero-configuration** observability dashboard that gives you a complete, **step-by-step and layer-by-layer** trace of your model's execution. It is not a demo. It is a production-ready system for builders who need to move from "demo culture" to building **reliable, interpretable** systems.
+**OKI TRACE** is the diagnostic tool for this problem. It is a **local-first, zero-configuration** observability dashboard that gives you a complete, **step-by-step and layer-by-layer** trace of your model's execution. It is  a demo. 
 
 ---
+## Why We Built This
 
+There was no single place where you could **chat** with a model and **inspect** its internals (logits, attention, Logit Lens) for each reply. OKI TRACE is that unified dashboard—chat and trace in one flow.
+
+ 
 ## How OKI TRACE Works
 
 OKI TRACE gives you a simple, powerful way to inspect the inner workings of any **HuggingFace `AutoModelForCausalLM`**–compatible model. Run a local Streamlit dashboard, chat with your model, and visualize the **entire generation process**—every token, every layer, every decision.
