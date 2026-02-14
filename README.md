@@ -6,7 +6,7 @@
 
 ![OKI TRACE](images/oki_trace_hero_image.png)
 
-[![Repo views](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https://github.com/skyline-GTRr32/OKI-TRACE&icon=github.svg&icon_color=%23121011&title=views&count_bg=%2379C83D&title_bg=%23555555&edge_flat=false)](https://hits.seeyoufarm.com)
+[![visitors](https://visitor-badge.lithub.cc/badge?page_id=skyline-GTRr32.OKI-TRACE&left_color=blue&right_color=green)](https://github.com/skyline-GTRr32/OKI-TRACE)
 [![GitHub stars](https://img.shields.io/github/stars/skyline-GTRr32/OKI-TRACE?style=flat-square)](https://github.com/skyline-GTRr32/OKI-TRACE/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/skyline-GTRr32/OKI-TRACE?style=flat-square)](https://github.com/skyline-GTRr32/OKI-TRACE/network/members)
 [![GitHub license](https://img.shields.io/github/license/skyline-GTRr32/OKI-TRACE?style=flat-square)](https://github.com/skyline-GTRr32/OKI-TRACE/blob/main/LICENSE)
@@ -18,45 +18,28 @@
 
 ---
 
-## The Thinking
+## The Diagnosis
 
-When we send a prompt to an LLM, we get an answer—but we usually have no idea *how* it got there. If the answer is wrong or half-right, we can't tell whether the model misunderstood the prompt, got derailed mid-way, or was right until the last few tokens. We're flying blind.
+When we send a prompt to a Large Language Model (LLM), we get a response. But we have no idea **how** it arrived at that response. If the output is wrong, biased, or nonsensical, we can't tell if the model misunderstood the prompt, got derailed mid-generation, or was correct until the final token. We are operating in a black box—making debugging and improvement a matter of guesswork, not engineering.
 
-**The core idea:** before we can interpret, steer, or improve how a model follows instructions, we need to **see what it actually does**—at every generation step and at every layer. Not as a black box, but as a trace: what it predicted, what it attended to, and how that prediction formed through the stack.
-
-This project is about building that **observability layer** for local LLMs: capture and visualize what happens inside the model when it produces each token.
+**OKI TRACE** is the diagnostic tool for this problem. It is a **local-first, zero-configuration** observability dashboard that gives you a complete, **step-by-step and layer-by-layer** trace of your model's execution. It is not a demo. It is a production-ready system for builders who need to move from "demo culture" to building **reliable, interpretable** systems.
 
 ---
 
-## What We're Building (v1)
+## How OKI TRACE Works
 
-**v1 has one goal:** given a model and a prompt, capture and display **what the LLM does at every step and every layer**.
+OKI TRACE gives you a simple, powerful way to inspect the inner workings of any **HuggingFace `AutoModelForCausalLM`**–compatible model. Run a local Streamlit dashboard, chat with your model, and visualize the **entire generation process**—every token, every layer, every decision.
 
-### Every Step
+**What you see in every trace:**
 
-A **step** is each time the model produces one new token. For every step we capture:
+| Trace Component | What It Shows | Why It Matters |
+| --- | --- | --- |
+| **Chosen Token** | The exact token generated at the current step. | The ground truth of the model's output. |
+| **Logits (Top-K)** | The model's next-token probability distribution. | See what the model *could have* said, and with what confidence. |
+| **Attention (Evidence)** | The input tokens that received the most attention. | Understand the "evidence" the model used to make its choice. |
+| **Logit Lens** | The predicted token distribution at *each layer*. | See how the final prediction emerges and refines through the model's layers. |
 
-- **Chosen token** — The token the model generated.
-- **Logits (top-k)** — The next-token distribution: what else it considered and with what probability.
-- **Attention (Evidence)** — Which input tokens (from the prompt and previous output) received the most attention when producing this token. This is the model’s “evidence” for its choice.
-
-### Every Layer
-
-For that same forward pass, at **each transformer layer** we compute a **Logit Lens**: we take the hidden state at the position we’re predicting from, run it through the model’s output head, and get a distribution over the vocabulary. So for each layer we see:
-
-> *“At this layer, the model would have predicted: token A (p₁), token B (p₂), …”*
-
-That shows how the final answer **emerges through the layers**—from noisy early layers to the refined prediction at the end.
-
-### The Dashboard
-
-A **Streamlit dashboard** lets you:
-
-- **Chat** with the model: send messages and see assistant replies. Each reply is traced.
-- For each generated token: click to view that step’s **logits** (top-k), **attention** (Evidence), and **Logit Lens** (prediction at each layer).
-- Inspect, layer by layer, how the model arrived at each token.
-
-Everything runs **locally**. No telemetry, no cloud. Your model, your data, your machine.
+**In the dashboard:** chat with the model, then for any assistant reply click **View trace** to step through each generated token and inspect logits, attention (Evidence), and Logit Lens for every layer. Everything runs **locally**. No telemetry, no cloud. Your model, your data, your machine.
 
 ---
 
