@@ -1,0 +1,6 @@
+torch>=2.0
+transformers>=4.36
+huggingface_hub>=0.20
+streamlit>=1.28
+accelerate>=0.25
+bitsandbytes>=0.41
