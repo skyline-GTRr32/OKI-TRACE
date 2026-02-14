@@ -1,4 +1,22 @@
-# [Project Name] — See What Your LLM Does at Every Step and Layer
+<div align="center">
+
+# OKI TRACE: Step-by-step LLM Observability
+
+**See what your LLM does at every step and every layer.**
+
+![OKI TRACE](images/oki_trace_hero_image.png)
+
+[![Repo views](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https://github.com/skyline-GTRr32/OKI-TRACE&icon=github.svg&icon_color=%23121011&title=views&count_bg=%2379C83D&title_bg=%23555555&edge_flat=false)](https://hits.seeyoufarm.com)
+[![GitHub stars](https://img.shields.io/github/stars/skyline-GTRr32/OKI-TRACE?style=flat-square)](https://github.com/skyline-GTRr32/OKI-TRACE/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/skyline-GTRr32/OKI-TRACE?style=flat-square)](https://github.com/skyline-GTRr32/OKI-TRACE/network/members)
+[![GitHub license](https://img.shields.io/github/license/skyline-GTRr32/OKI-TRACE?style=flat-square)](https://github.com/skyline-GTRr32/OKI-TRACE/blob/main/LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue?style=flat-square)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat-square&logo=streamlit)](https://streamlit.io)
+[![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch)](https://pytorch.org)
+
+</div>
+
+---
 
 ## The Thinking
 
