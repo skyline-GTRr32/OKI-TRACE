@@ -32,14 +32,30 @@ with st.sidebar:
         help="Any HuggingFace CausalLM: Qwen, Llama, Mistral, GPT-2, Phi, etc.",
     )
     use_4bit = st.checkbox("Use 4-bit quantization", value=True, key="trace_use_4bit", help="Fallback to fp16/bf16 if 4-bit fails")
+    if st.session_state.model is not None and st.session_state.get("loaded_quantization"):
+        st.success(f"**Loaded:** {st.session_state.get('loaded_quantization', '—')}")
     st.caption("6GB VRAM: first load can take 1–2 min; wait until you see \"Running traced generation...\".")
     if st.button("Reload model"):
         st.session_state.model = None
         st.session_state.tokenizer = None
+        st.session_state.loaded_quantization = None
         st.rerun()
 
     st.header("Settings")
-    max_new_tokens = st.number_input("Max new tokens", min_value=8, max_value=256, value=48)
+    enable_thinking = st.checkbox(
+        "Enable thinking",
+        value=False,
+        key="trace_enable_thinking",
+        help="DeepSeek-R1 / Qwen3: native thinking (<think> blocks). Other models: prompt to output <think>...</think> for reasoning.",
+    )
+    st.caption("Default model (DeepSeek-R1-Distill-Qwen-7B) supports reasoning; thinking is parsed from <think> blocks.")
+    compute_dla = st.checkbox(
+        "Compute DLA (first response token)",
+        value=False,
+        key="trace_compute_dla",
+        help="DLA for first token of actual response only (after </think>, skips thinking tokens).",
+    )
+    max_new_tokens = st.number_input("Max new tokens", min_value=8, max_value=5000, value=512)
     if st.button("Clear chat"):
         st.session_state.chat = []
         st.session_state.trace = None
@@ -84,8 +100,15 @@ def render_trace_view(trace):
 
     st.subheader("Prompt (full input to model)")
     st.text(trace.get("prompt", ""))
-    st.subheader("Output")
-    st.text(trace.get("output", ""))
+
+    st.subheader("Thinking (reasoning)")
+    if trace.get("thinking"):
+        st.markdown(trace.get("thinking", ""))
+    else:
+        st.caption("(none)")
+
+    st.subheader("Response (actual output)")
+    st.text(trace.get("output", "") or "(empty)")
     st.divider()
 
     steps = trace.get("steps", [])
@@ -119,6 +142,51 @@ def render_trace_view(trace):
         else:
             st.caption("Not available for this model")
 
+    # --- DLA from step (backward compat for old traces) ---
+    if s.get("dla") and "error" not in s["dla"]:
+        st.divider()
+        st.subheader("DLA — Direct Logit Attribution (this step)")
+        d = s["dla"]
+        st.caption(f"Chosen token: {d.get('chosen_token', '')!r} (id={d.get('chosen_token_id', '')})")
+        if "dla_summary" in d and "top_10_contributors" in d["dla_summary"]:
+            st.markdown("**Top 10 contributors**")
+            for x in d["dla_summary"]["top_10_contributors"]:
+                st.text(f"  {x['component']}: {x['logits']:+.2f} ({x['percentage']:.1f}%)")
+        if "verification" in d:
+            v = d["verification"]
+            st.success(f"Verification: passed={v.get('passed', False)}, error={v.get('error', '')}")
+
+    # --- DLA: first token of response only (from dla_analyzer logic) ---
+    d = trace.get("dla_first_response")
+    if d is not None and "error" not in d:
+        st.divider()
+        st.subheader("DLA — First token of response (actual output) only")
+        st.caption(f"Token: {d.get('chosen_token', '')!r} (id={d.get('chosen_token_id', '')}) — after </think>, excludes thinking")
+        if "dla_summary" in d and "top_10_contributors" in d["dla_summary"]:
+            st.markdown("**Top 10 components**")
+            for x in d["dla_summary"]["top_10_contributors"]:
+                st.text(f"  {x['component']}: {x['logits']:+.2f} ({x['percentage']:.1f}%)")
+        if "verification" in d:
+            v = d["verification"]
+            st.success(f"Verification: passed={v.get('passed', False)}, error={v.get('error', '')}")
+
+        # Token attribution: which input words contributed to this output token
+        ita = d.get("input_token_attribution")
+        if ita is not None and "error" not in ita and isinstance(ita, dict):
+            st.markdown("**Input token attribution** (which input words contributed to output)")
+            top_tokens = sorted(ita.items(), key=lambda x: x[1].get("rank", 99))[:15]
+            for token_str, data in top_tokens:
+                c = data.get("contribution", 0)
+                p = data.get("percentage", 0)
+                r = data.get("rank", 0)
+                st.text(f"  {r}. {token_str!r}: {c:+.2f} ({p:.1f}%)")
+        elif ita is not None and isinstance(ita, dict) and ita.get("error"):
+            st.caption(f"Token attribution: {ita.get('error', '')}")
+    elif d is not None and "error" in d:
+        st.divider()
+        st.subheader("DLA — First token of response")
+        st.warning(f"DLA failed: {d.get('error', '')}")
+
     st.divider()
     st.markdown("#### Logit Lens — all layers")
     if s["logit_lens"]:
@@ -146,6 +214,9 @@ for i, msg in enumerate(st.session_state.chat):
     role = msg["role"]
     content = msg["content"]
     with st.chat_message(role):
+        if role == "assistant" and msg.get("thinking"):
+            with st.expander("Thinking", expanded=False):
+                st.markdown(msg.get("thinking", ""))
         st.markdown(content)
         if role == "assistant" and msg.get("trace") is not None:
             if st.button("View trace", key=f"view_trace_{i}"):
@@ -169,9 +240,10 @@ if user_input:
     try:
         if need_load:
             with st.spinner("Loading model (first time can take 1–2 min on 6GB VRAM; wait for it to finish)..."):
-                st.session_state.model, st.session_state.tokenizer = load_model_and_tokenizer(model_id=model_id, use_4bit=use_4bit)
+                st.session_state.model, st.session_state.tokenizer, quant_info = load_model_and_tokenizer(model_id=model_id, use_4bit=use_4bit)
             st.session_state.loaded_model_id = model_id
             st.session_state.loaded_use_4bit = use_4bit
+            st.session_state.loaded_quantization = quant_info
         with st.spinner("Running traced generation..."):
             out, tr = run_traced(
                 messages=chat_messages,
@@ -181,8 +253,16 @@ if user_input:
                 topk_logits=10,
                 topk_evidence=10,
                 topk_lens=5,
+                enable_thinking=st.session_state.get("trace_enable_thinking", False),
+                compute_dla=st.session_state.get("trace_compute_dla", False),
             )
-        st.session_state.chat.append({"role": "assistant", "content": out, "trace": tr})
+        thinking = (tr or {}).get("thinking")
+        st.session_state.chat.append({
+            "role": "assistant",
+            "content": out,
+            "trace": tr,
+            "thinking": thinking,
+        })
         st.session_state.trace = tr
     except Exception as e:
         err_msg = str(e)
