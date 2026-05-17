@@ -15,17 +15,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
-try:
-    from entropy import (
-        compute_token_entropy,
-        compute_layer_entropies,
-        compute_eas,
-        compute_attention_entropy,
-        compute_response_entropy_summary,
-    )
-    ENTROPY_AVAILABLE = True
-except ImportError:
-    ENTROPY_AVAILABLE = False
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(ROOT, "model_cache")
@@ -355,37 +344,6 @@ def run_traced(
                         for p, i in zip(top_p.tolist(), top_i.tolist())
                     ],
                 })
-        # --- Entropy signals ---
-        entropy_signals = {}
-        if ENTROPY_AVAILABLE:
-            # Signal 1: Token Logit Entropy (full vocab, from raw logits)
-            # `logits` is already computed above as: out.logits[0, -1, :].float().cpu()
-            entropy_signals["token_entropy"] = compute_token_entropy(logits)
-
-            # Signal 2 + 3: Layer Entropies and EAS (from hidden states)
-            layer_ents = []
-            if logit_lens_available and getattr(out, "hidden_states", None) is not None:
-                layer_ents = compute_layer_entropies(
-                    out.hidden_states, norm, lm_head, device
-                )
-                entropy_signals["layer_entropies"] = layer_ents
-                entropy_signals["eas"] = compute_eas(layer_ents)
-            else:
-                entropy_signals["layer_entropies"] = []
-                entropy_signals["eas"] = None
-
-            # Signal 4: Attention Entropy (final layer + all-layer mean)
-            if use_attn:
-                entropy_signals["attention_entropy"] = compute_attention_entropy(
-                    out.attentions
-                )
-            else:
-                entropy_signals["attention_entropy"] = {
-                    "final_layer": None,
-                    "all_layers_mean": None,
-                    "all_layers": [],
-                }
-
 
         step_dict = {
             "step": step,
@@ -394,7 +352,6 @@ def run_traced(
             "logits_topk": logits_topk,
             "evidence": evidence,
             "logit_lens": logit_lens,
-            "entropy": entropy_signals if ENTROPY_AVAILABLE else {},
         }
         steps.append(step_dict)
 
@@ -552,7 +509,6 @@ def run_traced(
         "evidence_provenance": evidence_provenance,
         "logit_lens_available": logit_lens_available,
         "ablation_summary": _ablation_summary,
-        "entropy_summary": compute_response_entropy_summary(steps) if ENTROPY_AVAILABLE else {},
         "steps": steps,
     }
     if dla_first_response is not None:
